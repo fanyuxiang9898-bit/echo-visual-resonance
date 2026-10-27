@@ -1,3 +1,10 @@
+## 2026-10 maintenance
+
+- Added **停止接收** while generating. The selected image remains available for retry. This cancels the browser request; an already submitted AI generation may continue on the provider.
+- Stream errors, malformed events and premature disconnects now show a visible failure instead of a completed empty response. Split UTF-8, CRLF and multiline SSE payloads are handled correctly.
+- Server writes are guarded after a client disconnect.
+- Run `pnpm test:unit` with Node 24+ for dependency-free SSE regression tests. Production type/lint/build checks still require the locked pnpm dependencies and the existing service configuration.
+
 # projects
 
 这是一个基于 [Next.js 16](https://nextjs.org) + [shadcn/ui](https://ui.shadcn.com) 的全栈应用项目，由扣子编程 CLI 创建。

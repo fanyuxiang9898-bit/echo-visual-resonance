@@ -378,10 +378,13 @@ export async function POST(request: NextRequest) {
   const config = new Config();
 
   const encoder = new TextEncoder();
+  let disconnected = false;
 
   const stream = new ReadableStream({
+    cancel() { disconnected = true; },
     async start(controller) {
       const send = (event: string, data: string) => {
+        if (disconnected || request.signal.aborted) return;
         controller.enqueue(
           encoder.encode(`event: ${event}\ndata: ${data}\n\n`)
         );
@@ -490,7 +493,7 @@ export async function POST(request: NextRequest) {
           error instanceof Error ? error.message : '未知错误';
         send('error', JSON.stringify({ message }));
       } finally {
-        controller.close();
+        if (!disconnected) controller.close();
       }
     },
   });
