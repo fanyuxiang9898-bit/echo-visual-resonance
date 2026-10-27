@@ -20,3 +20,5 @@ Windows 可复用已有 Edge：`node tests/browser.cjs playwright "C:/Program Fi
 服务端必须部署到支持 Node.js 长连接/SSE 的平台。构建命令为 `corepack pnpm install --frozen-lockfile && corepack pnpm build`，启动命令为 `corepack pnpm start`。平台默认端口可由 Next.js 的 PORT 配置提供，或在启动参数中明确 `--port`。
 
 保留 Coze SDK 服务端集成；离开原 Coze 项目后必须配置该个人项目可用的模型访问身份。Supabase 存储另需个人项目的数据库配置。所有密钥通过托管平台秘密配置提供，不提交到 Git。没有实际模型身份和线上验证前，不将页面构建成功等同于完整部署成功。
+
+2026-10-27 原 Coze 环境确认旧视觉模型 `doubao-seed-1-8-251228` 已停运，视觉步骤改用内置 Seed 2.0 Lite。SDK 可用调用标识为 `doubao-seed-2-0-lite-260215`；不要直接把控制台展示的模型版本日期拼接成 SDK 标识。模型调用消耗原账户的 Coze 积分。
