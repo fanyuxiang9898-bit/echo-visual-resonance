@@ -17,13 +17,13 @@ jobs:
       - run: corepack pnpm install --frozen-lockfile
       - run: corepack pnpm test:unit
       - run: corepack pnpm lint:build
-      - run: corepack pnpm build
+      - run: bash scripts/coze-build.sh
         env:
           NODE_ENV: production
       - run: corepack pnpm audit --prod
       - run: corepack pnpm exec playwright install --with-deps chromium
       - name: Browser interactions against production build
         run: |
-          corepack pnpm start --port 5100 > /tmp/echo-server.log 2>&1 &
-          for attempt in {1..30}; do curl -fsS http://127.0.0.1:5100 > /dev/null && break; sleep 1; done
-          node tests/browser.cjs
+          bash scripts/coze-start.sh > /tmp/echo-server.log 2>&1 &
+          for attempt in {1..30}; do curl -fsS http://127.0.0.1:5000 > /dev/null && break; sleep 1; done
+          node tests/browser.cjs playwright '' http://127.0.0.1:5000

@@ -1,5 +1,7 @@
 # 构建、验证与部署
 
+Coze 原项目通过 `.coze` 调用 `scripts/coze-build.sh` 和 `scripts/coze-start.sh`，复用本文验证的生产构建与 Next.js 启动命令。只读取平台已有的工作目录、部署端口及模型身份，不重新设置系统或用户环境变量。CI 直接验证这两个入口。
+
 使用 Node.js 24 和 pnpm 9.0.0。不要使用全局 pnpm 11；可直接通过 `corepack pnpm` 执行以下命令。
 
 ```sh
