@@ -11,7 +11,7 @@ import { getSupabaseClient } from '@/storage/database/supabase-client';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const VISION_MODEL = 'doubao-seed-1-8-251228';
+const VISION_MODEL = 'doubao-seed-2-0-lite-260215';
 const TEXT_MODEL = 'doubao-seed-2-0-pro-260215';
 
 // Emotion branch types

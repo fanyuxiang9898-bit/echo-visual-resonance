@@ -39,7 +39,7 @@
 ## 核心功能 - Echo_Image_Flow 工作流
 
 ### Step 1: 感知 (Perception)
-- Vision 模型 (`doubao-seed-1-6-vision-250815`) 分析图片
+- Vision 模型 (`doubao-seed-2-0-lite-260215`) 分析图片
 - 提取：人物姿态、情绪关键词、背景环境、整体意境描述
 
 ### Step 2: 决策 (Decision)
