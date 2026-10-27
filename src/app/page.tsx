@@ -19,6 +19,8 @@ import {
   Paintbrush,
 } from 'lucide-react';
 
+import { readEchoEvents } from '@/lib/echo-stream';
+
 type InteractionStyle = 'epic' | 'playful';
 type EmotionBranch = 'low' | 'confident' | 'playful' | 'serene';
 
@@ -113,6 +115,11 @@ export default function Home() {
   const [statusLabel, setStatusLabel] = useState('');
   const [echoMessages, setEchoMessages] = useState<EchoMessage[]>([]);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+
+  const [errorMessage, setErrorMessage] = useState('');
+  const requestRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => requestRef.current?.abort(), []);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -231,7 +238,10 @@ export default function Home() {
   }, []);
 
   const sendEcho = useCallback(async () => {
-    if (!userImage || isSending) return;
+    if (!userImage || requestRef.current) return;
+    const controller = new AbortController();
+    requestRef.current = controller;
+    setErrorMessage('');
 
     setIsSending(true);
     setStreamingText('');
@@ -242,6 +252,7 @@ export default function Home() {
     try {
       const response = await fetch('/api/echo', {
         method: 'POST',
+        signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           image: currentImage,
@@ -253,12 +264,8 @@ export default function Home() {
         throw new Error('请求失败');
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('无法读取响应');
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let currentEvent = '';
+      if (!response.body) throw new Error('无法读取响应');
+      let completed = false;
 
       let perception: PerceptionData | null = null;
       let searchResult: SearchResult | null = null;
@@ -272,81 +279,58 @@ export default function Home() {
       let echoImageUrl: string | null = null;
       let fullText = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            currentEvent = line.slice(7).trim();
-            continue;
-          }
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6).trim();
-            try {
-              const parsed = JSON.parse(data);
-              switch (currentEvent) {
-                case 'status':
-                  setStatusLabel(parsed.label || '');
-                  break;
-                case 'perception':
-                  perception = {
-                    subject: parsed.subject || '',
-                    pose: parsed.pose || '',
-                    emotion: parsed.emotion || '',
-                    emotionBranch: parsed.emotionBranch || 'serene',
-                    environment: parsed.environment || '',
-                    styleKeywords: parsed.styleKeywords || '',
-                    colorPalette: parsed.colorPalette || '',
-                    rawDescription: parsed.rawDescription || '',
-                    warmCoolTone: parsed.warmCoolTone || '',
-                    textureStyle: parsed.textureStyle || '',
-                  };
-                  break;
-                case 'search':
-                  searchResult = {
-                    identity: parsed.identity || '',
-                    summary: parsed.summary || '',
-                  };
-                  break;
-                case 'decision':
-                  style = parsed.style === 'playful' ? 'playful' : 'epic';
-                  emotionBranch = parsed.emotionBranch || 'serene';
-                  branchLabel = parsed.branchLabel || '';
-                  persona = parsed.persona || '';
-                  styleLabel = parsed.styleLabel || '';
-                  copywriting = parsed.copywriting || '';
-                  visualSymbols = parsed.visualSymbols || '';
-                  break;
-                case 'text':
-                  fullText += parsed.content || '';
-                  setStreamingText(fullText);
-                  break;
-                case 'image':
-                  echoImageUrl = parsed.url || null;
-                  break;
-                case 'done':
-                  break;
-                case 'error':
-                  throw new Error(parsed.message || '处理失败');
-              }
-            } catch (e) {
-              if (
-                e instanceof Error &&
-                e.message !== '处理失败' &&
-                !e.message.includes('JSON')
-              ) {
-                throw e;
-              }
-            }
-            currentEvent = '';
-          }
+      for await (const { event: currentEvent, data } of readEchoEvents(response.body)) {
+        const parsed = JSON.parse(data);
+        switch (currentEvent) {
+          case 'status':
+            setStatusLabel(parsed.label || '');
+            break;
+          case 'perception':
+            perception = {
+              subject: parsed.subject || '',
+              pose: parsed.pose || '',
+              emotion: parsed.emotion || '',
+              emotionBranch: parsed.emotionBranch || 'serene',
+              environment: parsed.environment || '',
+              styleKeywords: parsed.styleKeywords || '',
+              colorPalette: parsed.colorPalette || '',
+              rawDescription: parsed.rawDescription || '',
+              warmCoolTone: parsed.warmCoolTone || '',
+              textureStyle: parsed.textureStyle || '',
+            };
+            break;
+          case 'search':
+            searchResult = {
+              identity: parsed.identity || '',
+              summary: parsed.summary || '',
+            };
+            break;
+          case 'decision':
+            style = parsed.style === 'playful' ? 'playful' : 'epic';
+            emotionBranch = parsed.emotionBranch || 'serene';
+            branchLabel = parsed.branchLabel || '';
+            persona = parsed.persona || '';
+            styleLabel = parsed.styleLabel || '';
+            copywriting = parsed.copywriting || '';
+            visualSymbols = parsed.visualSymbols || '';
+            break;
+          case 'text':
+            fullText += parsed.content || '';
+            setStreamingText(fullText);
+            break;
+          case 'image':
+            if (parsed.error) throw new Error(parsed.error);
+            echoImageUrl = parsed.url || null;
+            break;
+          case 'done':
+            completed = true;
+            break;
+          case 'error':
+            throw new Error(parsed.message || '处理失败');
         }
+        if (completed) break;
       }
+      if (!completed) throw new Error('连接提前结束，请重试');
 
       const newMessage: EchoMessage = {
         id: Date.now().toString(),
@@ -369,9 +353,11 @@ export default function Home() {
       setStreamingText('');
       setStatusLabel('');
     } catch (error) {
-      console.error('Echo failed:', error);
+      setErrorMessage(controller.signal.aborted ? '已停止接收，图片已保留，可重新生成。已提交的生成任务可能仍在服务端运行。' : (error instanceof Error ? error.message : '生成失败，请重试'));
+      setStreamingText('');
       setStatusLabel('');
     } finally {
+      requestRef.current = null;
       setIsSending(false);
     }
   }, [userImage, isSending]);
@@ -420,6 +406,7 @@ export default function Home() {
 
       {/* Main content area */}
       <main className="w-full max-w-lg px-4 pb-20 flex flex-col gap-6">
+        {errorMessage && <p role="alert" className="text-sm text-red-700">{errorMessage}</p>}
         {/* Camera dialog */}
         {isCameraOpen && (
           <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
@@ -513,6 +500,7 @@ export default function Home() {
           </div>
         )}
 
+        {isSending && <button type="button" onClick={() => requestRef.current?.abort()} className="text-sm underline">停止接收</button>}
         {/* Loading animation */}
         {isSending && (
           <div className="flex flex-col items-center gap-4 py-6 fade-in-up">

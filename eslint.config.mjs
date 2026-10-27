@@ -23,6 +23,10 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   {
+    files: ['tests/**/*.cjs'],
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
+  {
     rules: {
       'react-hooks/set-state-in-effect': 'off',
       'no-restricted-syntax': ['error', ...syntaxRules],
