@@ -11,6 +11,6 @@ validate = [ "bash", "./scripts/validate.sh" ]
 deps = [ "git" ]
 
 [deploy]
-build = [ "bash", "./scripts/build.sh" ]
-run = [ "bash", "./scripts/start.sh" ]
+build = [ "bash", "./scripts/coze-build.sh" ]
+run = [ "bash", "./scripts/coze-start.sh" ]
 deps = [ "git" ]
